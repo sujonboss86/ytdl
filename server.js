@@ -19,12 +19,11 @@ const AUTHOR = "SUJON-BOSS";
 const cache = new NodeCache({ stdTTL: 300 });
 
 // 🚫 RATE LIMIT
-const limiter = rateLimit({
+app.use(rateLimit({
   windowMs: 60 * 1000,
   max: 10,
   message: { error: "Too many requests, slow down!" }
-});
-app.use(limiter);
+}));
 
 // ⏱️ TIMEOUT
 app.use((req, res, next) => {
@@ -44,8 +43,12 @@ app.get("/", (req, res) => {
   });
 });
 
+// 🟢 HEALTH CHECK (Railway friendly)
+app.get("/health", (req, res) => {
+  res.send("OK");
+});
 
-// 🧪 DEBUG CHECK (yt-dlp installed?)
+// 🧪 CHECK yt-dlp
 app.get("/check", (req, res) => {
   exec("yt-dlp --version", (err, stdout) => {
     if (err) return res.send("❌ yt-dlp NOT installed");
@@ -64,11 +67,7 @@ app.get("/search", async (req, res) => {
     const cached = cache.get(key);
 
     if (cached) {
-      return res.json({
-        result: cached,
-        cached: true,
-        author: AUTHOR
-      });
+      return res.json({ result: cached, cached: true, author: AUTHOR });
     }
 
     const search = await yts(q);
@@ -90,11 +89,7 @@ app.get("/search", async (req, res) => {
 
     cache.set(key, videos);
 
-    res.json({
-      result: videos,
-      cached: false,
-      author: AUTHOR
-    });
+    res.json({ result: videos, cached: false, author: AUTHOR });
 
   } catch (e) {
     console.log("SEARCH ERROR:", e);
@@ -121,11 +116,11 @@ app.get("/audio", (req, res) => {
         return res.status(500).send("Download failed");
       }
 
-      res.download(filePath, () => {
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.download(filePath, fileName, () => {
         fs.unlink(filePath, () => {});
       });
 
-      // 🔥 backup delete
       setTimeout(() => {
         fs.existsSync(filePath) && fs.unlink(filePath, () => {});
       }, 5 * 60 * 1000);
@@ -156,11 +151,11 @@ app.get("/video", (req, res) => {
         return res.status(500).send("Download failed");
       }
 
-      res.download(filePath, () => {
+      res.setHeader("Content-Type", "video/mp4");
+      res.download(filePath, fileName, () => {
         fs.unlink(filePath, () => {});
       });
 
-      // 🔥 backup delete
       setTimeout(() => {
         fs.existsSync(filePath) && fs.unlink(filePath, () => {});
       }, 5 * 60 * 1000);
@@ -173,7 +168,7 @@ app.get("/video", (req, res) => {
 });
 
 
-// 🚀 START SERVER
+// 🚀 START
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`✅ API success | Author: ${AUTHOR}`);
