@@ -10,6 +10,9 @@ const fs = require("fs");
 const app = express();
 app.use(cors());
 
+// 🔥 IMPORTANT (Railway fix)
+app.set("trust proxy", 1);
+
 const PORT = process.env.PORT || 3000;
 
 // 🔥 AUTHOR
@@ -43,7 +46,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// 🟢 HEALTH CHECK (Railway friendly)
+// 🟢 HEALTH CHECK
 app.get("/health", (req, res) => {
   res.send("OK");
 });
@@ -98,7 +101,7 @@ app.get("/search", async (req, res) => {
 });
 
 
-// 🎧 AUDIO DOWNLOAD
+// 🎧 AUDIO DOWNLOAD (FIXED)
 app.get("/audio", (req, res) => {
   try {
     const url = req.query.url;
@@ -107,7 +110,11 @@ app.get("/audio", (req, res) => {
     const fileName = `audio_${Date.now()}.mp3`;
     const filePath = path.join(__dirname, fileName);
 
-    const cmd = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${filePath}" "${url}"`;
+    const cmd = `yt-dlp -x --audio-format mp3 \
+--no-check-certificate \
+--add-header "user-agent:Mozilla/5.0" \
+--no-playlist \
+-o "${filePath}" "${url}"`;
 
     exec(cmd, (error, stdout, stderr) => {
       if (error) {
@@ -133,7 +140,7 @@ app.get("/audio", (req, res) => {
 });
 
 
-// 🎬 VIDEO DOWNLOAD
+// 🎬 VIDEO DOWNLOAD (FIXED + BYPASS)
 app.get("/video", (req, res) => {
   try {
     const url = req.query.url;
@@ -142,7 +149,12 @@ app.get("/video", (req, res) => {
     const fileName = `video_${Date.now()}.mp4`;
     const filePath = path.join(__dirname, fileName);
 
-    const cmd = `yt-dlp -f "bestvideo+bestaudio/best" --merge-output-format mp4 -o "${filePath}" "${url}"`;
+    const cmd = `yt-dlp -f "bestvideo+bestaudio/best" \
+--merge-output-format mp4 \
+--no-check-certificate \
+--add-header "user-agent:Mozilla/5.0" \
+--no-playlist \
+-o "${filePath}" "${url}"`;
 
     exec(cmd, (error, stdout, stderr) => {
       if (error) {
