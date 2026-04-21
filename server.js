@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 3000;
 // 🔥 AUTHOR
 const AUTHOR = "SUJON-BOSS";
 
-// 🔥 CACHE SYSTEM
+// 🔥 CACHE
 const cache = new NodeCache({ stdTTL: 300 });
 
 // 🚫 RATE LIMIT
@@ -45,7 +45,16 @@ app.get("/", (req, res) => {
 });
 
 
-// 🔍 SEARCH API
+// 🧪 DEBUG CHECK (yt-dlp installed?)
+app.get("/check", (req, res) => {
+  exec("yt-dlp --version", (err, stdout) => {
+    if (err) return res.send("❌ yt-dlp NOT installed");
+    res.send("✅ yt-dlp OK: " + stdout);
+  });
+});
+
+
+// 🔍 SEARCH
 app.get("/search", async (req, res) => {
   try {
     const q = req.query.q;
@@ -63,6 +72,10 @@ app.get("/search", async (req, res) => {
     }
 
     const search = await yts(q);
+
+    if (!search.videos.length) {
+      return res.status(404).json({ error: "No results found" });
+    }
 
     const videos = search.videos.slice(0, 10).map((v, i) => ({
       index: i + 1,
@@ -84,12 +97,13 @@ app.get("/search", async (req, res) => {
     });
 
   } catch (e) {
+    console.log("SEARCH ERROR:", e);
     res.status(500).json({ error: "Search failed", author: AUTHOR });
   }
 });
 
 
-// 🎧 AUDIO
+// 🎧 AUDIO DOWNLOAD
 app.get("/audio", (req, res) => {
   try {
     const url = req.query.url;
@@ -98,25 +112,33 @@ app.get("/audio", (req, res) => {
     const fileName = `audio_${Date.now()}.mp3`;
     const filePath = path.join(__dirname, fileName);
 
-    const cmd = `yt-dlp -x --audio-format mp3 -o "${filePath}" "${url}"`;
+    const cmd = `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${filePath}" "${url}"`;
 
-    exec(cmd, (error) => {
+    exec(cmd, (error, stdout, stderr) => {
       if (error) {
+        console.log("AUDIO ERROR:", error.message);
+        console.log(stderr);
         return res.status(500).send("Download failed");
       }
 
       res.download(filePath, () => {
         fs.unlink(filePath, () => {});
       });
+
+      // 🔥 backup delete
+      setTimeout(() => {
+        fs.existsSync(filePath) && fs.unlink(filePath, () => {});
+      }, 5 * 60 * 1000);
     });
 
   } catch (e) {
+    console.log(e);
     res.status(500).send("Server error");
   }
 });
 
 
-// 🎬 VIDEO
+// 🎬 VIDEO DOWNLOAD
 app.get("/video", (req, res) => {
   try {
     const url = req.query.url;
@@ -125,19 +147,27 @@ app.get("/video", (req, res) => {
     const fileName = `video_${Date.now()}.mp4`;
     const filePath = path.join(__dirname, fileName);
 
-    const cmd = `yt-dlp -f best -o "${filePath}" "${url}"`;
+    const cmd = `yt-dlp -f "bestvideo+bestaudio/best" --merge-output-format mp4 -o "${filePath}" "${url}"`;
 
-    exec(cmd, (error) => {
+    exec(cmd, (error, stdout, stderr) => {
       if (error) {
+        console.log("VIDEO ERROR:", error.message);
+        console.log(stderr);
         return res.status(500).send("Download failed");
       }
 
       res.download(filePath, () => {
         fs.unlink(filePath, () => {});
       });
+
+      // 🔥 backup delete
+      setTimeout(() => {
+        fs.existsSync(filePath) && fs.unlink(filePath, () => {});
+      }, 5 * 60 * 1000);
     });
 
   } catch (e) {
+    console.log(e);
     res.status(500).json({ error: "Server error" });
   }
 });
