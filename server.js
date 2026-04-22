@@ -10,7 +10,7 @@ const fs = require("fs");
 const app = express();
 app.use(cors());
 
-// 🔥 IMPORTANT (Railway fix)
+// 🔥 Railway fix
 app.set("trust proxy", 1);
 
 const PORT = process.env.PORT || 3000;
@@ -101,7 +101,7 @@ app.get("/search", async (req, res) => {
 });
 
 
-// 🎧 AUDIO DOWNLOAD (FIXED)
+// 🎧 AUDIO DOWNLOAD (WITH COOKIES)
 app.get("/audio", (req, res) => {
   try {
     const url = req.query.url;
@@ -109,8 +109,11 @@ app.get("/audio", (req, res) => {
 
     const fileName = `audio_${Date.now()}.mp3`;
     const filePath = path.join(__dirname, fileName);
+    const cookiePath = path.join(__dirname, "cookies.txt");
 
     const cmd = `yt-dlp -x --audio-format mp3 \
+--audio-quality 0 \
+--cookies "${cookiePath}" \
 --no-check-certificate \
 --add-header "user-agent:Mozilla/5.0" \
 --no-playlist \
@@ -140,7 +143,7 @@ app.get("/audio", (req, res) => {
 });
 
 
-// 🎬 VIDEO DOWNLOAD (FIXED + BYPASS)
+// 🎬 VIDEO DOWNLOAD (WITH COOKIES + BYPASS)
 app.get("/video", (req, res) => {
   try {
     const url = req.query.url;
@@ -148,9 +151,11 @@ app.get("/video", (req, res) => {
 
     const fileName = `video_${Date.now()}.mp4`;
     const filePath = path.join(__dirname, fileName);
+    const cookiePath = path.join(__dirname, "cookies.txt");
 
     const cmd = `yt-dlp -f "bestvideo+bestaudio/best" \
 --merge-output-format mp4 \
+--cookies "${cookiePath}" \
 --no-check-certificate \
 --add-header "user-agent:Mozilla/5.0" \
 --no-playlist \
